@@ -1,18 +1,25 @@
+import os
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import easyocr
 import cv2
 import numpy as np
 import base64
-import pyttsx3  # Added for TTS functionality
+import pyttsx3  # For TTS functionality
+from googletrans import Translator  # For translation
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for cross-origin requests
 
 reader = easyocr.Reader(['en'], gpu=False)
+translator = Translator()  # Initialize the Translator
 
 # Initialize TTS engine
 tts_engine = pyttsx3.init()
+
+# Ensure the translated folder exists
+translated_audio_folder = 'static/translated'
+os.makedirs(translated_audio_folder, exist_ok=True)
 
 @app.route('/')
 def index():
@@ -50,7 +57,7 @@ def process_image():
     # Combine extracted text into a single string
     text_to_read = '\n'.join([item['text'] for item in extracted_text])
 
-    # Perform Text-to-Speech (TTS)
+    # Perform Text-to-Speech (TTS) for extracted text
     audio_path = None
     if text_to_read:
         audio_path = 'static/audio/output.mp3'
@@ -61,6 +68,29 @@ def process_image():
         'text': extracted_text,
         'image': img_base64,
         'audio': f'/{audio_path}' if audio_path else None
+    })
+
+@app.route('/translate', methods=['POST'])
+def translate_text():
+    data = request.get_json()
+    text = data.get('text')
+    target_language = data.get('language', 'en')  # Default to English if no language provided
+
+    if not text:
+        return jsonify({'error': 'No text provided'}), 400
+
+    # Translate text
+    translated = translator.translate(text, dest=target_language)
+    translated_text = translated.text
+
+    # Generate TTS for the translated text and save it to the translated folder
+    translated_audio_path = os.path.join(translated_audio_folder, f'{target_language}_output.mp3')
+    tts_engine.save_to_file(translated_text, translated_audio_path)
+    tts_engine.runAndWait()
+
+    return jsonify({
+        'translated_text': translated_text,
+        'audio': f'/translated/{target_language}_output.mp3'  # Correct path for translated audio
     })
 
 if __name__ == '__main__':
