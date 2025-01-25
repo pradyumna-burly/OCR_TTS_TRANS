@@ -5,7 +5,6 @@ import cv2
 import numpy as np
 import base64
 import pyttsx3  # Added for TTS functionality
-from googletrans import Translator  # Import Google Translator
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for cross-origin requests
@@ -14,9 +13,6 @@ reader = easyocr.Reader(['en'], gpu=False)
 
 # Initialize TTS engine
 tts_engine = pyttsx3.init()
-
-# Initialize Translator
-translator = Translator()
 
 @app.route('/')
 def index():
@@ -66,19 +62,6 @@ def process_image():
         'image': img_base64,
         'audio': f'/{audio_path}' if audio_path else None
     })
-
-@app.route('/translate', methods=['POST'])
-def translate_text():
-    data = request.json
-    text = data['text']
-    target_lang = data['target_lang']
-
-    if target_lang:
-        # Translate to target language
-        translated = translator.translate(text, dest=target_lang)
-        return jsonify({'translated_text': translated.text})
-    else:
-        return jsonify({'translated_text': text})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
