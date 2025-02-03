@@ -2,23 +2,61 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart OCR Translator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OCR System with TTS and Translator</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
-        body { background-color: #f8f9fa; }
-        .navbar-brand img { height: 60px; margin-right: 15px; }
-        .preview-box { border: 2px dashed #007bff; border-radius: 10px; }
-        .result-card { transition: all 0.3s ease; }
-        .result-card:hover { transform: translateY(-5px); }
-        .confidence-badge { font-size: 0.9rem; }
-        .processed-image { max-width: 80%; border: 3px solid #28a745; }
+        :root {
+            --primary: #007bff;
+            --success: #28a745;
+            --warning: #ffc107;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            font-size: 14px;
+        }
+
+        .navbar-brand img {
+            height: 40px;
+            margin-right: 10px;
+        }
+
+        .preview-box {
+            border: 2px dashed var(--primary);
+            border-radius: 8px;
+            margin: 10px 0;
+            background: white;
+        }
+
+        .btn-mobile {
+            width: 100%;
+            margin: 8px 0;
+            padding: 12px;
+            font-size: 16px;
+        }
+
+        .processed-image {
+            max-width: 100%;
+            border: 2px solid var(--success);
+        }
+
+        .confidence-badge {
+            font-size: 0.8rem;
+            padding: 0.4em 0.6em;
+        }
+
+        @media (min-width: 768px) {
+            body { font-size: 16px; }
+            .btn-mobile { width: auto; }
+            .processed-image { max-width: 80%; }
+        }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
+        <div class="container-fluid">
             <a class="navbar-brand" href="#">
                 <img src="/static/images/White RV Logo.png" alt="Logo">
                 OCR System with TTS and Translator
@@ -26,56 +64,62 @@
         </div>
     </nav>
 
-    <div class="container my-5">
-        <div class="card shadow-lg result-card">
+    <div class="container my-3">
+        <div class="card shadow">
             <div class="card-body">
-                <div class="text-center mb-4">
-                    <h2 class="text-primary mb-4">Capture Image to Extract Text</h2>
-                    <input type="file" id="imageInput" accept="image/*" hidden>
-                    <button id="uploadBtn" class="btn btn-primary btn-lg me-3">
-                        <i class="bi bi-upload"></i> Capture Image
+                <!-- Camera Section -->
+                <div class="text-center mb-3">
+                    <button id="cameraBtn" class="btn btn-primary btn-mobile">
+                        <i class="bi bi-camera"></i> Capture Image
                     </button>
-                    <button id="processBtn" class="btn btn-success btn-lg" disabled>
+                    <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
+                </div>
+
+                <!-- Image Preview -->
+                <div class="preview-box p-2">
+                    <img id="imagePreview" class="img-fluid" style="display: none;">
+                    <div id="previewPlaceholder" class="text-center text-muted py-4">
+                        No image captured
+                    </div>
+                </div>
+
+                <!-- Processing Section -->
+                <div class="text-center mt-3">
+                    <button id="processBtn" class="btn btn-success btn-mobile" disabled>
                         <i class="bi bi-gear"></i> Process Image
                     </button>
                 </div>
 
-                <div class="text-center mb-4">
-                    <div class="preview-box p-3">
-                        <img id="imagePreview" class="img-fluid" style="display: none; max-height: 400px;">
-                        <div id="previewPlaceholder" class="text-muted">No image selected</div>
-                    </div>
-                </div>
-
+                <!-- Results Section -->
                 <div id="resultsSection" style="display: none;">
-                    <div class="mb-4">
-                        <h3 class="h4 text-success mb-3"><i class="bi bi-text-left"></i> Extracted Text</h3>
+                    <div class="mt-4">
+                        <h4 class="text-success mb-3"><i class="bi bi-text-left"></i> Extracted Text</h4>
                         <div id="extractedText" class="bg-light p-3 rounded mb-3" 
-                            style="white-space: pre-wrap; font-size: 1.1rem;"></div>
+                            style="white-space: pre-wrap; font-size: 1rem;"></div>
+                        
                         <div class="alert alert-info">
-                            <h4 class="h5 mb-3"><i class="bi bi-graph-up"></i> Confidence Levels</h4>
+                            <h5 class="mb-2"><i class="bi bi-graph-up"></i> Confidence Levels</h5>
                             <ul id="confidenceList" class="list-group"></ul>
                         </div>
                     </div>
 
-                    <div class="text-center mb-4">
-                        <h3 class="h4 text-primary mb-3"><i class="bi bi-image"></i> Processed Image</h3>
+                    <div class="text-center my-4">
+                        <h4 class="text-primary mb-3"><i class="bi bi-image"></i> Processed Image</h4>
                         <img id="annotatedImage" class="processed-image img-fluid rounded">
                     </div>
 
                     <div class="text-center mb-4">
-                        <button id="playOriginalBtn" class="btn btn-warning btn-lg me-2" style="display: none;">
+                        <button id="playOriginalBtn" class="btn btn-warning btn-mobile" style="display: none;">
                             <i class="bi bi-play-circle"></i> Play Original
-                        </button>
-                        <button id="translateBtn" class="btn btn-info btn-lg">
-                            <i class="bi bi-translate"></i> Translate
                         </button>
                     </div>
 
+                    <!-- Translation Section -->
                     <div class="mt-4">
-                        <div class="row g-3 align-items-center justify-content-center">
-                            <div class="col-auto">
-                                <select id="languageSelect" class="form-select form-select-lg">
+                        <h4 class="text-primary mb-3"><i class="bi bi-translate"></i> Translation</h4>
+                        <div class="row g-3 justify-content-center">
+                            <div class="col-12 col-md-6">
+                                <select id="languageSelect" class="form-select">
                                     <option value="en">English</option>
                                     <option value="es">Spanish</option>
                                     <option value="fr">French</option>
@@ -84,11 +128,17 @@
                                     <option value="hi">Hindi</option>
                                 </select>
                             </div>
+                            <div class="col-12 col-md-6">
+                                <button id="translateBtn" class="btn btn-primary btn-mobile">
+                                    <i class="bi bi-arrow-repeat"></i> Translate
+                                </button>
+                            </div>
                         </div>
+                        
                         <div class="mt-3">
                             <div id="translatedText" class="bg-light p-3 rounded mt-3" 
-                                style="white-space: pre-wrap; font-size: 1.1rem;"></div>
-                            <button id="playTranslatedBtn" class="btn btn-warning btn-lg mt-3" style="display: none;">
+                                style="white-space: pre-wrap; font-size: 1rem;"></div>
+                            <button id="playTranslatedBtn" class="btn btn-warning btn-mobile mt-3" style="display: none;">
                                 <i class="bi bi-play-circle"></i> Play Translation
                             </button>
                         </div>
@@ -100,8 +150,8 @@
 
     <script>
         const elements = {
-            imageInput: document.getElementById('imageInput'),
-            uploadBtn: document.getElementById('uploadBtn'),
+            cameraBtn: document.getElementById('cameraBtn'),
+            cameraInput: document.getElementById('cameraInput'),
             processBtn: document.getElementById('processBtn'),
             imagePreview: document.getElementById('imagePreview'),
             previewPlaceholder: document.getElementById('previewPlaceholder'),
@@ -119,23 +169,36 @@
         let currentFile = null;
         let currentAudio = null;
 
-        // Event Listeners
-        elements.uploadBtn.addEventListener('click', () => elements.imageInput.click());
-        
-        elements.imageInput.addEventListener('change', (e) => {
-            currentFile = e.target.files[0];
-            if (currentFile) {
-                elements.imagePreview.src = URL.createObjectURL(currentFile);
-                elements.imagePreview.style.display = 'block';
-                elements.previewPlaceholder.style.display = 'none';
-                elements.processBtn.disabled = false;
+        // Camera Handling
+        elements.cameraBtn.addEventListener('click', () => elements.cameraInput.click());
+
+        elements.cameraInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                try {
+                    // Resize image to 360x360
+                    const resizedFile = await resizeImage(file);
+                    currentFile = resizedFile;
+                    
+                    // Show preview
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        elements.imagePreview.src = e.target.result;
+                        elements.imagePreview.style.display = 'block';
+                        elements.previewPlaceholder.style.display = 'none';
+                        elements.processBtn.disabled = false;
+                    };
+                    reader.readAsDataURL(resizedFile);
+                } catch (error) {
+                    alert('Error processing image: ' + error.message);
+                }
             }
         });
 
-        elements.processBtn.addEventListener('click', processImage);
-        elements.translateBtn.addEventListener('click', handleTranslation);
+        // Image Processing
+        elements.processBtn.addEventListener('click', async () => {
+            if (!currentFile) return;
 
-        async function processImage() {
             try {
                 elements.processBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
                 elements.processBtn.disabled = true;
@@ -151,8 +214,10 @@
                 if (!response.ok) throw new Error('Processing failed');
                 const data = await response.json();
 
-                // Update UI
+                // Update UI with results
                 elements.resultsSection.style.display = 'block';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                
                 elements.extractedText.textContent = data.text.map(t => t.text).join(' ');
                 
                 elements.confidenceList.innerHTML = data.text.map(t => `
@@ -163,7 +228,7 @@
                 `).join('');
                 
                 elements.annotatedImage.src = `data:image/jpeg;base64,${data.image}`;
-                elements.playOriginalBtn.style.display = 'inline-block';
+                elements.playOriginalBtn.style.display = 'block';
                 elements.playOriginalBtn.onclick = () => playAudio(data.audio);
 
             } catch (error) {
@@ -172,13 +237,16 @@
                 elements.processBtn.innerHTML = '<i class="bi bi-gear"></i> Process Image';
                 elements.processBtn.disabled = false;
             }
-        }
+        });
 
-        async function handleTranslation() {
+        // Translation Handling
+        elements.translateBtn.addEventListener('click', async () => {
             try {
                 const text = elements.extractedText.textContent;
                 const lang = elements.languageSelect.value;
 
+                elements.translateBtn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Translating...';
+                
                 const response = await fetch('/translate', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -189,16 +257,48 @@
                 const data = await response.json();
 
                 elements.translatedText.textContent = data.translated_text;
-                elements.playTranslatedBtn.style.display = 'inline-block';
+                elements.playTranslatedBtn.style.display = 'block';
                 elements.playTranslatedBtn.onclick = () => playAudio(data.audio);
 
             } catch (error) {
                 alert(`Error: ${error.message}`);
+            } finally {
+                elements.translateBtn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Translate';
             }
+        });
+
+        // Image Resizing Function
+        async function resizeImage(file) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.src = URL.createObjectURL(file);
+                
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 360;
+                    canvas.height = 360;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, 360, 360);
+                    
+                    canvas.toBlob(blob => {
+                        resolve(new File([blob], file.name, {
+                            type: 'image/jpeg',
+                            lastModified: Date.now()
+                        }));
+                    }, 'image/jpeg', 0.8);
+                };
+                
+                img.onerror = error => reject(error);
+            });
         }
 
+        // Audio Handling
         function playAudio(base64Data) {
-            if (currentAudio) currentAudio.pause();
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
             
             try {
                 const byteArray = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
