@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>OCR System with TTS and Translator</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Kannada&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         :root {
@@ -51,6 +52,11 @@
             body { font-size: 16px; }
             .btn-mobile { width: auto; }
             .processed-image { max-width: 80%; }
+        }
+
+        .kannada-text {
+        font-family: 'Noto Sans Kannada', sans-serif;
+        font-size: 1.2rem;
         }
     </style>
 </head>
@@ -126,6 +132,7 @@
                                     <option value="de">German</option>
                                     <option value="ja">Japanese</option>
                                     <option value="hi">Hindi</option>
+                                    <option value="kn">Kannada</option>
                                 </select>
                             </div>
                             <div class="col-12 col-md-6">
@@ -136,7 +143,7 @@
                         </div>
                         
                         <div class="mt-3">
-                            <div id="translatedText" class="bg-light p-3 rounded mt-3" 
+                            <div id="translatedText" class="bg-light p-3 rounded mt-3 kannada-text" 
                                 style="white-space: pre-wrap; font-size: 1rem;"></div>
                             <button id="playTranslatedBtn" class="btn btn-warning btn-mobile mt-3" style="display: none;">
                                 <i class="bi bi-play-circle"></i> Play Translation
@@ -269,29 +276,50 @@
 
         // Image Resizing Function
         async function resizeImage(file) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.src = URL.createObjectURL(file);
-                
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = 360;
-                    canvas.height = 360;
-                    
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, 360, 360);
-                    
-                    canvas.toBlob(blob => {
-                        resolve(new File([blob], file.name, {
-                            type: 'image/jpeg',
-                            lastModified: Date.now()
-                        }));
-                    }, 'image/jpeg', 0.8);
-                };
-                
-                img.onerror = error => reject(error);
-            });
-        }
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        
+        img.onload = () => {
+            // Calculate scaling factor
+            const scale = Math.min(360 / img.width, 360 / img.height);
+            const newWidth = img.width * scale;
+            const newHeight = img.height * scale;
+
+            // Create temporary canvas for scaling
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = newWidth;
+            tempCanvas.height = newHeight;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(img, 0, 0, newWidth, newHeight);
+
+            // Create final canvas with padding
+            const finalCanvas = document.createElement('canvas');
+            finalCanvas.width = 360;
+            finalCanvas.height = 360;
+            const finalCtx = finalCanvas.getContext('2d');
+            
+            // Add white background
+            finalCtx.fillStyle = '#ffffff';
+            finalCtx.fillRect(0, 0, 360, 360);
+            
+            // Center the scaled image
+            const xOffset = (360 - newWidth) / 2;
+            const yOffset = (360 - newHeight) / 2;
+            finalCtx.drawImage(tempCanvas, xOffset, yOffset);
+
+            // Convert to JPEG
+            finalCanvas.toBlob(blob => {
+                resolve(new File([blob], file.name, {
+                    type: 'image/jpeg',
+                    lastModified: Date.now()
+                }));
+            }, 'image/jpeg', 0.8);
+        };
+
+        img.onerror = error => reject(error);
+    });
+    }
 
         // Audio Handling
         function playAudio(base64Data) {
