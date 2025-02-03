@@ -3,178 +3,213 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OCR Camera App</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/static/css/style.css">
+    <title>Smart OCR Translator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
-        body {
-            background-color: #d7f3fc; /* Light blue background */
-        }
-        .navbar-brand img {
-            height: 40px; /* Adjust logo size */
-        }
+        body { background-color: #f8f9fa; }
+        .navbar-brand img { height: 60px; margin-right: 15px; }
+        .preview-box { border: 2px dashed #007bff; border-radius: 10px; }
+        .result-card { transition: all 0.3s ease; }
+        .result-card:hover { transform: translateY(-5px); }
+        .confidence-badge { font-size: 0.9rem; }
+        .processed-image { max-width: 80%; border: 3px solid #28a745; }
     </style>
 </head>
 <body>
-    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
+        <div class="container">
             <a class="navbar-brand" href="#">
-                <img src="/static/images/Black RV Logo.png" alt="Logo"> OCR Camera App
+                <img src="/static/images/White RV Logo.png" alt="Logo">
+                OCR System with TTS and Translator
             </a>
         </div>
     </nav>
 
-    <!-- Main Container -->
     <div class="container my-5">
-        <div class="text-center">
-            <h1 class="mb-4 text-primary">Capture and Extract Text</h1>
-            <p class="text-secondary">Easily capture text from images using your camera.</p>
-        </div>
-
-        <!-- Camera and Preview Section -->
-        <div class="d-flex flex-column align-items-center mb-4">
-            <input type="file" accept="image/*" capture="environment" id="cameraInput" style="display:none;">
-            <button id="cameraButton" class="btn btn-primary btn-lg mb-3">
-                <i class="bi bi-camera"></i> Open Camera
-            </button>
-            <img id="preview" alt="Captured Image" class="img-thumbnail" style="display:none; max-width: 300px;">
-            <button id="uploadButton" class="btn btn-success mt-3" disabled>
-                <i class="bi bi-upload"></i> Process Image
-            </button>
-        </div>
-
-        <!-- Result Section -->
-        <div id="result" class="card shadow" style="display:none;">
-            <div class="card-header bg-primary text-white">
-                <h2 class="h5 mb-0">Results</h2>
-            </div>
+        <div class="card shadow-lg result-card">
             <div class="card-body">
-                <h3 class="h6 text-secondary">Extracted Text:</h3>
-                <pre id="extractedText" class="bg-light p-3 rounded"></pre>
-                <h3 class="h6 text-secondary mt-4">Confidence Scores:</h3>
-                <ul id="confidenceList" class="list-group list-group-flush"></ul>
-                <div class="mt-4 text-center">
-                    <h3 class="h6 text-secondary">Annotated Image:</h3>
-                    <img id="resultImage" alt="Annotated Image" class="img-thumbnail">
-                </div>
-                <div class="mt-4 text-center">
-                    <h3 class="h6 text-secondary">Text-to-Speech:</h3>
-                    <button id="playAudioButton" class="btn btn-warning" style="display:none;">
-                        <i class="bi bi-play-circle"></i> Play Extracted Text
+                <div class="text-center mb-4">
+                    <h2 class="text-primary mb-4">Capture Image to Extract Text</h2>
+                    <input type="file" id="imageInput" accept="image/*" hidden>
+                    <button id="uploadBtn" class="btn btn-primary btn-lg me-3">
+                        <i class="bi bi-upload"></i> Capture Image
+                    </button>
+                    <button id="processBtn" class="btn btn-success btn-lg" disabled>
+                        <i class="bi bi-gear"></i> Process Image
                     </button>
                 </div>
-                <!-- Language selection and translation section -->
-                <div class="mt-4 text-center">
-                    <h3 class="h6 text-secondary">Translate and Listen:</h3>
-                    <select id="languageSelect" class="form-select mb-3">
-                        <option value="en">English</option>
-                        <option value="es">Spanish</option>
-                        <option value="fr">French</option>
-                        <option value="de">German</option>
-                        <option value="it">Italian</option>
-                        <option value="ja">Japanese</option>
-                        <option value="hi">Hindi</option>
-                    </select>
-                    <button id="translateButton" class="btn btn-primary">
-                        Translate
-                    </button>
-                    <pre id="translatedText" class="bg-light p-3 rounded mt-3"></pre>
-                    <button id="playTranslatedAudioButton" class="btn btn-warning mt-3" style="display:none;">
-                        <i class="bi bi-play-circle"></i> Play Translated Text
-                    </button>
+
+                <div class="text-center mb-4">
+                    <div class="preview-box p-3">
+                        <img id="imagePreview" class="img-fluid" style="display: none; max-height: 400px;">
+                        <div id="previewPlaceholder" class="text-muted">No image selected</div>
+                    </div>
+                </div>
+
+                <div id="resultsSection" style="display: none;">
+                    <div class="mb-4">
+                        <h3 class="h4 text-success mb-3"><i class="bi bi-text-left"></i> Extracted Text</h3>
+                        <div id="extractedText" class="bg-light p-3 rounded mb-3" 
+                            style="white-space: pre-wrap; font-size: 1.1rem;"></div>
+                        <div class="alert alert-info">
+                            <h4 class="h5 mb-3"><i class="bi bi-graph-up"></i> Confidence Levels</h4>
+                            <ul id="confidenceList" class="list-group"></ul>
+                        </div>
+                    </div>
+
+                    <div class="text-center mb-4">
+                        <h3 class="h4 text-primary mb-3"><i class="bi bi-image"></i> Processed Image</h3>
+                        <img id="annotatedImage" class="processed-image img-fluid rounded">
+                    </div>
+
+                    <div class="text-center mb-4">
+                        <button id="playOriginalBtn" class="btn btn-warning btn-lg me-2" style="display: none;">
+                            <i class="bi bi-play-circle"></i> Play Original
+                        </button>
+                        <button id="translateBtn" class="btn btn-info btn-lg">
+                            <i class="bi bi-translate"></i> Translate
+                        </button>
+                    </div>
+
+                    <div class="mt-4">
+                        <div class="row g-3 align-items-center justify-content-center">
+                            <div class="col-auto">
+                                <select id="languageSelect" class="form-select form-select-lg">
+                                    <option value="en">English</option>
+                                    <option value="es">Spanish</option>
+                                    <option value="fr">French</option>
+                                    <option value="de">German</option>
+                                    <option value="ja">Japanese</option>
+                                    <option value="hi">Hindi</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <div id="translatedText" class="bg-light p-3 rounded mt-3" 
+                                style="white-space: pre-wrap; font-size: 1.1rem;"></div>
+                            <button id="playTranslatedBtn" class="btn btn-warning btn-lg mt-3" style="display: none;">
+                                <i class="bi bi-play-circle"></i> Play Translation
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Bootstrap Bundle JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Custom JavaScript -->
     <script>
-        const cameraButton = document.getElementById('cameraButton');
-        const cameraInput = document.getElementById('cameraInput');
-        const preview = document.getElementById('preview');
-        const uploadButton = document.getElementById('uploadButton');
-        const resultContainer = document.getElementById('result');
-        const extractedTextElement = document.getElementById('extractedText');
-        const confidenceList = document.getElementById('confidenceList');
-        const resultImage = document.getElementById('resultImage');
-        const playAudioButton = document.getElementById('playAudioButton');
-        const translateButton = document.getElementById('translateButton');
-        const languageSelect = document.getElementById('languageSelect');
-        const translatedTextElement = document.getElementById('translatedText');
-        const playTranslatedAudioButton = document.getElementById('playTranslatedAudioButton');
+        const elements = {
+            imageInput: document.getElementById('imageInput'),
+            uploadBtn: document.getElementById('uploadBtn'),
+            processBtn: document.getElementById('processBtn'),
+            imagePreview: document.getElementById('imagePreview'),
+            previewPlaceholder: document.getElementById('previewPlaceholder'),
+            resultsSection: document.getElementById('resultsSection'),
+            extractedText: document.getElementById('extractedText'),
+            confidenceList: document.getElementById('confidenceList'),
+            annotatedImage: document.getElementById('annotatedImage'),
+            playOriginalBtn: document.getElementById('playOriginalBtn'),
+            translateBtn: document.getElementById('translateBtn'),
+            languageSelect: document.getElementById('languageSelect'),
+            translatedText: document.getElementById('translatedText'),
+            playTranslatedBtn: document.getElementById('playTranslatedBtn')
+        };
 
-        let capturedImage;
+        let currentFile = null;
+        let currentAudio = null;
 
-        // Open Camera on Button Click
-        cameraButton.addEventListener('click', () => {
-            cameraInput.click();
-        });
-
-        // On Image Capture
-        cameraInput.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                capturedImage = file;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    preview.src = e.target.result;
-                    preview.style.display = 'block';
-                    uploadButton.disabled = false;
-                };
-                reader.readAsDataURL(file);
+        // Event Listeners
+        elements.uploadBtn.addEventListener('click', () => elements.imageInput.click());
+        
+        elements.imageInput.addEventListener('change', (e) => {
+            currentFile = e.target.files[0];
+            if (currentFile) {
+                elements.imagePreview.src = URL.createObjectURL(currentFile);
+                elements.imagePreview.style.display = 'block';
+                elements.previewPlaceholder.style.display = 'none';
+                elements.processBtn.disabled = false;
             }
         });
 
-        // Process Image after Capture
-        uploadButton.addEventListener('click', async () => {
-            const formData = new FormData();
-            formData.append('image', capturedImage);
+        elements.processBtn.addEventListener('click', processImage);
+        elements.translateBtn.addEventListener('click', handleTranslation);
 
-            const response = await fetch('/process-image', {
-                method: 'POST',
-                body: formData
-            });
+        async function processImage() {
+            try {
+                elements.processBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+                elements.processBtn.disabled = true;
 
-            const result = await response.json();
-            extractedTextElement.textContent = result.text.map(item => item.text).join('\n');
-            confidenceList.innerHTML = result.text.map(item => 
-                `<li class="list-group-item">${(item.confidence * 1).toFixed(2)}% accurate: ${item.text}</li>`
-            ).join('');
-            resultImage.src = `data:image/jpeg;base64,${result.image}`;
-            playAudioButton.style.display = result.audio ? 'inline-block' : 'none';
-            playAudioButton.onclick = () => new Audio(result.audio).play();
-            resultContainer.style.display = 'block';
-        });
+                const formData = new FormData();
+                formData.append('image', currentFile);
 
-        // Translate Text and Play Translated Audio
-        translateButton.addEventListener('click', async () => {
-            const textToTranslate = extractedTextElement.textContent;
+                const response = await fetch('/process-image', {
+                    method: 'POST',
+                    body: formData
+                });
 
-            const response = await fetch('/translate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    text: textToTranslate,
-                    language: languageSelect.value
-                })
-            });
+                if (!response.ok) throw new Error('Processing failed');
+                const data = await response.json();
 
-            const result = await response.json();
-            translatedTextElement.textContent = result.translated_text;
+                // Update UI
+                elements.resultsSection.style.display = 'block';
+                elements.extractedText.textContent = data.text.map(t => t.text).join(' ');
+                
+                elements.confidenceList.innerHTML = data.text.map(t => `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        ${t.text}
+                        <span class="badge bg-primary confidence-badge">${t.confidence}</span>
+                    </li>
+                `).join('');
+                
+                elements.annotatedImage.src = `data:image/jpeg;base64,${data.image}`;
+                elements.playOriginalBtn.style.display = 'inline-block';
+                elements.playOriginalBtn.onclick = () => playAudio(data.audio);
 
-            // Play translated audio only if it's available
-            if (result.audio) {
-                playTranslatedAudioButton.style.display = 'inline-block';
-                playTranslatedAudioButton.onclick = () => new Audio(result.audio).play();
-            } else {
-                playTranslatedAudioButton.style.display = 'none';
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            } finally {
+                elements.processBtn.innerHTML = '<i class="bi bi-gear"></i> Process Image';
+                elements.processBtn.disabled = false;
             }
-        });
+        }
+
+        async function handleTranslation() {
+            try {
+                const text = elements.extractedText.textContent;
+                const lang = elements.languageSelect.value;
+
+                const response = await fetch('/translate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ text, language: lang })
+                });
+
+                if (!response.ok) throw new Error('Translation failed');
+                const data = await response.json();
+
+                elements.translatedText.textContent = data.translated_text;
+                elements.playTranslatedBtn.style.display = 'inline-block';
+                elements.playTranslatedBtn.onclick = () => playAudio(data.audio);
+
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        function playAudio(base64Data) {
+            if (currentAudio) currentAudio.pause();
+            
+            try {
+                const byteArray = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+                const blob = new Blob([byteArray], { type: 'audio/mpeg' });
+                currentAudio = new Audio(URL.createObjectURL(blob));
+                currentAudio.play();
+            } catch (error) {
+                alert('Audio playback error: ' + error.message);
+            }
+        }
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -1,28 +1,32 @@
-import os
-from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
-import easyocr
 import cv2
 import numpy as np
 import base64
-import pyttsx3  # For TTS functionality
-from googletrans import Translator  # For translation
+from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
+import easyocr
+from gtts import gTTS
+from io import BytesIO
+from googletrans import Translator
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for cross-origin requests
+CORS(app)
 
+# Initialize OCR reader with improved settings
 reader = easyocr.Reader(['en'], gpu=False)
-translator = Translator()  # Initialize the Translator
+translator = Translator()
 
-# Initialize TTS engine
-tts_engine = pyttsx3.init()
-
-# Ensure the translated folder exists
-translated_audio_folder = 'static/translated'
-os.makedirs(translated_audio_folder, exist_ok=True)
+def preprocess_image(image):
+    """Enhance image for better OCR results"""
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    processed = cv2.adaptiveThreshold(
+        gray, 255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY, 11, 2
+    )
+    return cv2.medianBlur(processed, 3)
 
 @app.route('/')
-def index():
+def home():
     return send_from_directory('templates', 'index.html')
 
 @app.route('/process-image', methods=['POST'])
@@ -30,68 +34,72 @@ def process_image():
     if 'image' not in request.files:
         return jsonify({'error': 'No image uploaded'}), 400
     
-    image_file = request.files['image']
-    image_data = np.frombuffer(image_file.read(), np.uint8)
-    img = cv2.imdecode(image_data, cv2.IMREAD_COLOR)
+    try:
+        # Read and process image
+        img_file = request.files['image']
+        img_arr = np.frombuffer(img_file.read(), np.uint8)
+        img = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
+        
+        # Preprocess and OCR
+        processed_img = preprocess_image(img)
+        results = reader.readtext(processed_img, detail=1, paragraph=False)
+        
+        # Extract text and annotate image
+        extracted_text = []
+        annotated_img = img.copy()
+        for detection in results:
+            text = detection[1]
+            confidence = detection[2]
+            points = [tuple(map(int, point)) for point in detection[0]]
+            
+            extracted_text.append({'text': text, 'confidence': f"{confidence*100:.2f}%"})
+            cv2.polylines(annotated_img, [np.array(points)], True, (0, 255, 0), 2)
+            cv2.putText(annotated_img, text, points[0], 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
-    # Resize image for OCR
-    resized_img = cv2.resize(img, (360, 360), interpolation=cv2.INTER_AREA)
+        # Prepare response
+        _, buffer = cv2.imencode('.jpg', annotated_img)
+        img_base64 = base64.b64encode(buffer).decode('utf-8')
+        full_text = ' '.join([t['text'] for t in extracted_text])
+        
+        # Generate audio
+        tts = gTTS(text=full_text, lang='en')
+        audio_buffer = BytesIO()
+        tts.write_to_fp(audio_buffer)
+        audio_base64 = base64.b64encode(audio_buffer.getvalue()).decode('utf-8')
 
-    result = reader.readtext(resized_img)
-    annotated_img = resized_img.copy()
-    extracted_text = []
-
-    for detection in result:
-        top_left = tuple([int(val) for val in detection[0][0]])
-        bottom_right = tuple([int(val) for val in detection[0][2]])
-        text = detection[1]
-        confidence = detection[2]
-        extracted_text.append({'text': text, 'confidence': f"{confidence * 100:.2f}"})
-        cv2.rectangle(annotated_img, top_left, bottom_right, (0, 255, 0), 2)
-        cv2.putText(annotated_img, text, top_left, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
-
-    # Convert annotated image to base64
-    _, buffer = cv2.imencode('.jpg', annotated_img)
-    img_base64 = base64.b64encode(buffer).decode('utf-8')
-
-    # Combine extracted text into a single string
-    text_to_read = '\n'.join([item['text'] for item in extracted_text])
-
-    # Perform Text-to-Speech (TTS) for extracted text
-    audio_path = None
-    if text_to_read:
-        audio_path = 'static/audio/output.mp3'
-        tts_engine.save_to_file(text_to_read, audio_path)
-        tts_engine.runAndWait()
-
-    return jsonify({
-        'text': extracted_text,
-        'image': img_base64,
-        'audio': f'/{audio_path}' if audio_path else None
-    })
+        return jsonify({
+            'text': extracted_text,
+            'image': img_base64,
+            'audio': audio_base64
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/translate', methods=['POST'])
 def translate_text():
-    data = request.get_json()
-    text = data.get('text')
-    target_language = data.get('language', 'en')  # Default to English if no language provided
+    try:
+        data = request.get_json()
+        text = data.get('text', '')
+        target_lang = data.get('language', 'en')
+        
+        # Translate text
+        translated = translator.translate(text, dest=target_lang)
+        
+        # Generate translated audio
+        tts = gTTS(text=translated.text, lang=target_lang)
+        audio_buffer = BytesIO()
+        tts.write_to_fp(audio_buffer)
+        audio_base64 = base64.b64encode(audio_buffer.getvalue()).decode('utf-8')
 
-    if not text:
-        return jsonify({'error': 'No text provided'}), 400
-
-    # Translate text
-    translated = translator.translate(text, dest=target_language)
-    translated_text = translated.text
-
-    # Generate TTS for the translated text and save it to the translated folder
-    translated_audio_path = os.path.join(translated_audio_folder, f'{target_language}_output.mp3')
-    tts_engine.save_to_file(translated_text, translated_audio_path)
-    tts_engine.runAndWait()
-
-    return jsonify({
-        'translated_text': translated_text,
-        'audio': f'/translated/{target_language}_output.mp3'  # Correct path for translated audio
-    })
+        return jsonify({
+            'translated_text': translated.text,
+            'audio': audio_base64
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
