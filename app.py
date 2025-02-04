@@ -18,12 +18,17 @@ translator = Translator()
 def preprocess_image(image):
     """Enhance image for better OCR results"""
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    processed = cv2.adaptiveThreshold(
-        gray, 255,
+    _, thresh = cv2.threshold(gray, 240, 255, cv2.THRESH_BINARY_INV)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    mask = np.zeros_like(gray)
+    cv2.drawContours(mask, contours, -1, 255, thickness=cv2.FILLED)
+    processed = cv2.bitwise_and(gray, mask)
+    processed = cv2.bitwise_not(processed)
+    return cv2.adaptiveThreshold(
+        processed, 255,
         cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY, 11, 2
+        cv2.THRESH_BINARY, 21, 8
     )
-    return cv2.medianBlur(processed, 3)
 
 @app.route('/')
 def home():

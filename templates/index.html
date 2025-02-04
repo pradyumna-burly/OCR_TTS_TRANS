@@ -281,45 +281,39 @@
         img.src = URL.createObjectURL(file);
         
         img.onload = () => {
-            // Calculate scaling factor
-            const scale = Math.min(360 / img.width, 360 / img.height);
-            const newWidth = img.width * scale;
-            const newHeight = img.height * scale;
-
-            // Create temporary canvas for scaling
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = newWidth;
-            tempCanvas.height = newHeight;
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.drawImage(img, 0, 0, newWidth, newHeight);
-
-            // Create final canvas with padding
-            const finalCanvas = document.createElement('canvas');
-            finalCanvas.width = 360;
-            finalCanvas.height = 360;
-            const finalCtx = finalCanvas.getContext('2d');
+            // Calculate scaling to maximize text size
+            const targetSize = 360;
+            const scale = Math.min(targetSize / img.width, targetSize / img.height);
             
-            // Add white background
-            finalCtx.fillStyle = '#ffffff';
-            finalCtx.fillRect(0, 0, 360, 360);
+            // Create single canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = targetSize;
+            canvas.height = targetSize;
+            const ctx = canvas.getContext('2d');
             
-            // Center the scaled image
-            const xOffset = (360 - newWidth) / 2;
-            const yOffset = (360 - newHeight) / 2;
-            finalCtx.drawImage(tempCanvas, xOffset, yOffset);
-
-            // Convert to JPEG
-            finalCanvas.toBlob(blob => {
+            // Add contrast background
+            ctx.fillStyle = '#f0f0f0'; // Light gray better for OCR
+            ctx.fillRect(0, 0, targetSize, targetSize);
+            
+            // Calculate position with 5% margin
+            const margin = targetSize * 0.05;
+            const scaledWidth = img.width * scale * 0.9;
+            const scaledHeight = img.height * scale * 0.9;
+            const x = (targetSize - scaledWidth) / 2;
+            const y = (targetSize - scaledHeight) / 2;
+            
+            ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+            
+            // Higher quality conversion
+            canvas.toBlob(blob => {
                 resolve(new File([blob], file.name, {
                     type: 'image/jpeg',
                     lastModified: Date.now()
                 }));
-            }, 'image/jpeg', 0.8);
+            }, 'image/jpeg', 0.9); // Increased to 90% quality
         };
-
-        img.onerror = error => reject(error);
     });
-    }
+        }
 
         // Audio Handling
         function playAudio(base64Data) {
